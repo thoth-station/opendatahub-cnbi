@@ -1,5 +1,8 @@
 # the CNBi flow
 
+[![hackmd-github-sync-badge](https://hackmd.io/6BgU6fdSRvyMLZNPwGykfg/badge)](https://hackmd.io/6BgU6fdSRvyMLZNPwGykfg)
+
+
 ### Background: Import (the BYON way)
 
 For the phase 1 *Bring your own notebook (BYON)* functionality, the ODH dashboard creates a `PipelineRun`.
@@ -17,7 +20,7 @@ flowchart LR
 
 We will introduce a new custom resource defintition (CRD) — called `CustomNBImage` — to be:
 
-1. the interface between UI and service and
+1. the interface between UI and service and 
 2. contain all the configuration items required for any CNBi use case.
 
 A first draft of the [CNBi CRD](https://github.com/goern/meteor-operator/blob/spike-cnbi-crd/api/v1alpha1/customnbimage_types.go#L38-L43) is available. @goern recorded [a demo](https://asciinema.org/a/516347) of [the first draft](https://github.com/goern/meteor-operator/tree/spike-cnbi-crd)
@@ -30,7 +33,7 @@ The ODH dashboard interfaces with the `CustomNBImage` CR:
 
 ### Import
 
-The ODH dashboard creates a `CustomNBImage` instead of a `PipelineRun`.
+The ODH dashboard creates a `CustomNBImage` instead of a `PipelineRun`. 
 
 ```mermaid
 flowchart LR
@@ -56,12 +59,13 @@ flowchart TB
     subgraph CNBi Operator
         direction LR
         CR -.- C[CNBi controller] ==> PRprepare[/PipelineRun: prepare/]
-        subgraph Build
+        subgraph OpenShift Pipelines
             B[(base image)] & g[(git)] -.uses.-> PRprepare
             PRprepare --> PRbuild[/PipelineRun: build/]
+            PRbuild --> PRvalidate[/PipelineRun: validate/]
         end
     end
-    PRbuild --> I[(Image)] & IS[/ImageStream/] -.-> JH[JupyterHub]
+    PRvalidate --> I[(Image)] & IS[/ImageStream/] -.-> JH[JupyterHub]
     O --unsure about this?!--> g
 ```
 
@@ -88,20 +92,23 @@ erDiagram
 
 ## CustomNBImage state diagram
 
-### Build
-
 ```mermaid
 stateDiagram-v2
     [*] --> Pending
     Failure --> [*]
 
     Pending --> Preparing
+    Pending --> Importing
     Preparing --> Resolving
     Preparing --> Failure
     Resolving --> Building
     Resolving --> Failure
-    Building --> Success
+    Building --> Validating
     Building --> Failure
+    Importing --> Validating
+    Importing --> Failure
+    Validating --> Success
+    Validating --> Failure
     Success --> [*]
 ```
 
@@ -109,30 +116,30 @@ stateDiagram-v2
 
 Phase 1 BYON import state diagram from https://github.com/open-services-group/byon/issues/23#issuecomment-1055586737
 
-```mermaid
-    stateDiagram-v2
-        [*] --> Importing
-        Importing --> Validating
-        Validating --> Success
-        Validating --> Failure
-        Success --> [*]
-        Failure --> [*]
-
-        note right of Importing
-            Import pipeline is scheduled but
-            ImageStream was not yet created
-        end note
-
-        note left of Validating
-            Import pipeline is running,
-            phase can be sourced from
-            ImageStream annotation
-        end note
+```mermaid                                                                      
+    stateDiagram-v2                                                           
+        [*] --> Importing                                                     
+        Importing --> Validating                                              
+        Validating --> Success                                                
+        Validating --> Failure                                                
+        Success --> [*]                                                       
+        Failure --> [*]                                                       
+                                                                              
+        note right of Importing                                               
+            Import pipeline is scheduled but                                  
+            ImageStream was not yet created                                   
+        end note                                                              
+                                                                              
+        note left of Validating                                               
+            Import pipeline is running,                                       
+            phase can be sourced from                                         
+            ImageStream annotation                                            
+        end note    
   ```
-
+  
 ## FAQ
 
-> question: do we keep the git repo internall to the pipelinerun or do we push it to somewhere for later use? is the repo base-url a config of the controller? @codificat
+> question: do we keep the git repo internall to the pipelinerun or do we push it to somewhere for later use? is the repo base-url a config of the controller? @codificat 
 
 If we want the possibility that the user can point to a git repo to request a build, then the git repo must be exposed at the CustomNBImage level.
 
@@ -140,7 +147,7 @@ Therefore, the git repo should be in the CNBi CR.
 
 > Follow-up question: can it be, though, that for some use cases it is in the `spec` (e.g. "I want to build from that repo") while for others might only appear in the `status` (e.g. "FYI this is where your source of truth is being kept")?
 
-> question: do we have multiple pipelinerun for prepare and build or just one? is 'prepare' specific to use case and 'build' agnostic? @FIkOzrY0QJa6x7Z2vsT1UQ @codificat
+> question: do we have multiple pipelinerun for prepare and build or just one? is 'prepare' specific to use case and 'build' agnostic? @FIkOzrY0QJa6x7Z2vsT1UQ @codificat 
 
 Let's confirm:
 - *Prepare* involves getting the git repo up to date with the necessary information. This can involve e.g. updating `requirements.txt` (possibly with Thoth advice)
@@ -164,37 +171,46 @@ DESCRIPTION:
      CustomNBImageSpec defines the desired state of CustomNBImage
 
 FIELDS:
-   baseImage    <string>
+   baseImage	<string>
      An existing image to validate/import, or to use as the base for builds
 
-   creator    <string> -required-
+   creator	<string> -required-
      Creator is the name of the user who created the CustomNBImage
 
-   description    <string>
+   description	<string>
      Description that should be shown in the UI
 
-   displayName    <string> -required-
+   displayName	<string> -required-
      Name that should be shown in the UI
 
-   packageVersions    <[]string>
+   packageVersions	<[]string>
      PackageVersion is a set of Packages including their Version Specifiers
 
-   pipelines    <[]string> -required-
+   pipelines	<[]string> -required-
      List of pipelines to initiate for this meteor
 
-   ref    <string>
+   ref	<string>
      Branch or tag or commit reference within the repository.
 
-   repoURL    <string>
+   repoURL	<string>
      Git repository containing source artifacts and build configuration
 
-   runtimeEnvironment    <Object>
+   runtimeEnvironment	<Object>
      RuntimeEnvironment is the runtime environment to use for the Custome
      Notebook Image
 
-   ttl    <integer>
+   ttl	<integer>
      Time to live after the resource was created.
 ```
+
+## Things to discuss/review
+
+We have different use cases that require different actions, and therefore different pipelines to be run. How to handle that?
+
+Alternatives that come to mind are:
+- continue with a single `CustomNBImage` CRD, and have a field that determines the action (e.g. *import*, *build image*, *create image*...)
+- the same but without an explicit field; deduce the action (and therefore the pipeline) from the parameters that are defined. I don't quite like that - explicit better than implicit.
+- have multiple CRDs, e.g. one per action type, with specific fields (e.g. `CustomNBImageImport` points to an image to import, `CustomNBImageBuild` points to a repo..)
 
 ## Sample `CustomNBImage` resources
 
@@ -245,19 +261,22 @@ spec:
 
 ### Import an image (BYON-like)
 
+This is a proposal for an import of an Image. It might be a good idea to seperate the ODH Dashboard information into a structure of it's own (as shown below).
+
 ```yaml
 ---
 apiVersion: meteor.zone/v1alpha1
 kind: CustomNBImage
 metadata:
-  name: osc-pytorch
+  name: s2i-minimal-py38-notebook
 spec:
-  displayName: OS-Climate image with Pytorch
-  description: This image is expected to PASS import validation
-  creator: thoth-station
-  baseImage: quay.io/os-climate/aicoe-osc-demo:latest
-  pipelines:
-    - import
+  dashboardInformation:
+    name: s2i-minimal-py38-notebook
+    creator: meteor
+    description: minimal python notebook
+  strategy:
+    type: import
+    from: quay.io/thoth-station/s2i-minimal-py38-notebook:v0.2.2
 ```
 
 A demo of a similar `CustomNBImage` in action is available here: https://asciinema.org/a/517335
@@ -272,7 +291,7 @@ The [BYON pipelines](https://github.com/open-services-group/byon/blob/3b23be51f6
 
 - url: points to the image in the registry
 - name: to show in JH spawner (?)
-- desc:
+- desc: 
 - creator:
 
 ### Meteor build resource
@@ -289,3 +308,4 @@ spec:
   ref: main
   ttl: 5000
 ```
+

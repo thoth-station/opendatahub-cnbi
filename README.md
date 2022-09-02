@@ -7,7 +7,7 @@
 
 We will introduce a new custom resource defintition (CRD) — called `CustomNBImage` — to be:
 
-1. the interface between UI and service and 
+1. the interface between UI and service and
 2. contain all the configuration items required for any CNBi use case.
 
 A first draft of the [CNBi CRD](https://github.com/goern/meteor-operator/blob/spike-cnbi-crd/api/v1alpha1/customnbimage_types.go#L38-L43) is available. @goern recorded [a demo](https://asciinema.org/a/516347) of [the first draft](https://github.com/goern/meteor-operator/tree/spike-cnbi-crd)
@@ -36,7 +36,7 @@ flowchart LR
     I[(Image)] -.-> PR & JH
 ```
 
-#### Example 
+#### Example
 
 This is a proposal for an import of an Image. It carries information according to [Open Data Hub annotations](https://github.com/opendatahub-io/jupyterhub-singleuser-profiles/blob/master/jupyterhub_singleuser_profiles/images.py#L10-L19) only `created-by` is interpreted in a different way. Annotations are passed to the PipelineRun.
 
@@ -179,30 +179,30 @@ stateDiagram-v2
 
 Phase 1 BYON import state diagram from https://github.com/open-services-group/byon/issues/23#issuecomment-1055586737
 
-```mermaid                                                                      
-    stateDiagram-v2                                                           
-        [*] --> Importing                                                     
-        Importing --> Validating                                              
-        Validating --> Success                                                
-        Validating --> Failure                                                
-        Success --> [*]                                                       
-        Failure --> [*]                                                       
-                                                                              
-        note right of Importing                                               
-            Import pipeline is scheduled but                                  
-            ImageStream was not yet created                                   
-        end note                                                              
-                                                                              
-        note left of Validating                                               
-            Import pipeline is running,                                       
-            phase can be sourced from                                         
-            ImageStream annotation                                            
-        end note    
+```mermaid
+    stateDiagram-v2
+        [*] --> Importing
+        Importing --> Validating
+        Validating --> Success
+        Validating --> Failure
+        Success --> [*]
+        Failure --> [*]
+
+        note right of Importing
+            Import pipeline is scheduled but
+            ImageStream was not yet created
+        end note
+
+        note left of Validating
+            Import pipeline is running,
+            phase can be sourced from
+            ImageStream annotation
+        end note
   ```
-  
+
 ## FAQ
 
-> question: do we keep the git repo internall to the pipelinerun or do we push it to somewhere for later use? is the repo base-url a config of the controller? @codificat 
+> question: do we keep the git repo internall to the pipelinerun or do we push it to somewhere for later use? is the repo base-url a config of the controller? @codificat
 
 If we want the possibility that the user can point to a git repo to request a build, then the git repo must be exposed at the CustomNBImage level.
 
@@ -210,7 +210,7 @@ Therefore, the git repo should be in the CNBi CR.
 
 > Follow-up question: can it be, though, that for some use cases it is in the `spec` (e.g. "I want to build from that repo") while for others might only appear in the `status` (e.g. "FYI this is where your source of truth is being kept")?
 
-> question: do we have multiple pipelinerun for prepare and build or just one? is 'prepare' specific to use case and 'build' agnostic? @FIkOzrY0QJa6x7Z2vsT1UQ @codificat 
+> question: do we have multiple pipelinerun for prepare and build or just one? is 'prepare' specific to use case and 'build' agnostic? @FIkOzrY0QJa6x7Z2vsT1UQ @codificat
 
 Let's confirm:
 - *Prepare* involves getting the git repo up to date with the necessary information. This can involve e.g. updating `requirements.txt` (possibly with Thoth advice)
@@ -244,7 +244,7 @@ The [BYON pipelines](https://github.com/open-services-group/byon/blob/3b23be51f6
 
 - url: points to the image in the registry
 - name: to show in JH spawner (?)
-- desc: 
+- desc:
 - creator:
 
 ### Meteor build resource

@@ -54,8 +54,7 @@ metadata:
     opendatahub.io/notebook-image-creator: goern
 spec:
   type: import
-  from:
-    url: quay.io/thoth-station/s2i-minimal-py38-notebook:v0.2.2
+  baseImage: quay.io/thoth-station/s2i-minimal-py38-notebook:v0.2.2
 ```
 
 ### Build
@@ -105,7 +104,6 @@ This example shows how to build a notebook image using a specific runtime enviro
 list of packages.
 
 ```
----
 apiVersion: meteor.zone/v1alpha1
 kind: CustomNBImage
 metadata:
@@ -113,15 +111,48 @@ metadata:
 [...]
 spec:
   type: packageList
-  from:
-    runtimeEnvironment:
-      osName: ubi
-      osVersion: "8"
-      pythonVersion: "3.8"
+  runtimeEnvironment:
+    osName: ubi
+    osVersion: "8"
+    pythonVersion: "3.8"
   packageVersions:
     - pandas
     - boto3>=1.24.0
 ```
+
+
+This next example shows how to declare a build based on an existing container image, updating or adding packages:
+
+
+```
+apiVersion: meteor.zone/v1alpha1
+kind: CustomNBImage
+metadata:
+  name: ubi8-py38-sample-3
+[...]
+spec:
+  type: packageList
+  baseImage: quay.io/thoth-station/s2i-minimal-py38-notebook:v0.2.2
+  packageVersions:
+    - pandas
+    - boto3>=1.24.0
+```
+
+
+This example shows how to declare a build of a GitHub repository that contains notebooks:
+
+```
+apiVersion: meteor.zone/v1alpha1
+kind: CustomNBImage
+metadata:
+  name: ubi8-py38-sample-3
+[...]
+spec:
+  type: gitRepository
+  baseImage: quay.io/thoth-station/s2i-minimal-py38-notebook:v0.2.2 # Optional? it's not used by Meteor
+  repositoryUrl: https://github.com/AICoE/elyra-aidevsecops-tutorial
+```
+
 
 ## CustomNBImage state diagram
 

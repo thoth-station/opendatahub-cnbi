@@ -3,19 +3,6 @@
 [![hackmd-github-sync-badge](https://hackmd.io/6BgU6fdSRvyMLZNPwGykfg/badge)](https://hackmd.io/6BgU6fdSRvyMLZNPwGykfg)
 
 
-### Background: Import (the BYON way)
-
-For the phase 1 *Bring your own notebook (BYON)* functionality, the ODH dashboard creates a `PipelineRun`.
-
-```mermaid
-flowchart LR
-    subgraph BYON Import
-        PR[/PipelineRun/]
-    end
-    O[ODH] ==> PR --> IS[/ImageStream/] -.-> JH[JupyterHub]
-    I[(Image)] -.-> PR & JH
-```
-
 ## Proposal
 
 We will introduce a new custom resource defintition (CRD) — called `CustomNBImage` — to be:
@@ -33,7 +20,7 @@ The ODH dashboard interfaces with the `CustomNBImage` CR:
 
 ### Import
 
-The ODH dashboard creates a `CustomNBImage` instead of a `PipelineRun`. 
+The ODH dashboard creates a `CustomNBImage`. Note: the yellow box denotes the ownership (by Meteor's CNBi) of resources.
 
 ```mermaid
 flowchart LR
@@ -47,6 +34,28 @@ flowchart LR
     end
     PR --> IS[/ImageStream/] -.-> JH[JupyterHub]
     I[(Image)] -.-> PR & JH
+```
+
+#### Example 
+
+This is a proposal for an import of an Image. It carries information according to [Open Data Hub annotations](https://github.com/opendatahub-io/jupyterhub-singleuser-profiles/blob/master/jupyterhub_singleuser_profiles/images.py#L10-L19) only `created-by` is interpreted in a different way. Annotations are passed to the PipelineRun.
+
+
+```
+apiVersion: meteor.zone/v1alpha1
+kind: CustomNBImage
+metadata:
+  name: s2i-minimal-py38-notebook
+  labels:
+    app.kubernetes.io/created-by: cpe-_a-meteor.zone-CNBi-v0.1.0
+  annotations:
+    opendatahub.io/notebook-image-name: s2i-minimal-py38-notebook
+    opendatahub.io/notebook-image-desc: minimal notebook image for python 3.8
+    opendatahub.io/notebook-image-creator: goern
+spec:
+  type: import
+  from:
+    url: quay.io/thoth-station/s2i-minimal-py38-notebook:v0.2.2
 ```
 
 ### Build
@@ -90,15 +99,38 @@ erDiagram
 }
 ```
 
+### Example
+
+This example shows how to build a notebook image using a specific runtime environment and a
+list of packages.
+
+```
+---
+apiVersion: meteor.zone/v1alpha1
+kind: CustomNBImage
+metadata:
+  name: ubi8-py38-sample-3
+[...]
+spec:
+  type: packageList
+  from:
+    runtimeEnvironment:
+      osName: ubi
+      osVersion: "8"
+      pythonVersion: "3.8"
+  packageVersions:
+    - pandas
+    - boto3>=1.24.0
+```
+
 ## CustomNBImage state diagram
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Pending
+    [*] --> Preparing
+    [*] --> Importing
     Failure --> [*]
 
-    Pending --> Preparing
-    Pending --> Importing
     Preparing --> Resolving
     Preparing --> Failure
     Resolving --> Building
@@ -158,50 +190,6 @@ In any case, I believe that by default the approach would be: (potentially) mult
 
 One exception / potential reason to have multiple Pipeline(Run)s would be if the UX for a certain use case involves multiple steps where each step deserves a separate PR. In other words: if the git repo preparation has its own UX workflow, then it needs a dedicated Pipeline(Run).
 
-# CustomNBImage CRD
-
-```
-$ kubectl explain customnbimage.spec
-KIND:     CustomNBImage
-VERSION:  meteor.zone/v1alpha1
-
-RESOURCE: spec <Object>
-
-DESCRIPTION:
-     CustomNBImageSpec defines the desired state of CustomNBImage
-
-FIELDS:
-   baseImage	<string>
-     An existing image to validate/import, or to use as the base for builds
-
-   creator	<string> -required-
-     Creator is the name of the user who created the CustomNBImage
-
-   description	<string>
-     Description that should be shown in the UI
-
-   displayName	<string> -required-
-     Name that should be shown in the UI
-
-   packageVersions	<[]string>
-     PackageVersion is a set of Packages including their Version Specifiers
-
-   pipelines	<[]string> -required-
-     List of pipelines to initiate for this meteor
-
-   ref	<string>
-     Branch or tag or commit reference within the repository.
-
-   repoURL	<string>
-     Git repository containing source artifacts and build configuration
-
-   runtimeEnvironment	<Object>
-     RuntimeEnvironment is the runtime environment to use for the Custome
-     Notebook Image
-
-   ttl	<integer>
-     Time to live after the resource was created.
-```
 
 ## Things to discuss/review
 
@@ -212,58 +200,10 @@ Alternatives that come to mind are:
 - the same but without an explicit field; deduce the action (and therefore the pipeline) from the parameters that are defined. I don't quite like that - explicit better than implicit.
 - have multiple CRDs, e.g. one per action type, with specific fields (e.g. `CustomNBImageImport` points to an image to import, `CustomNBImageBuild` points to a repo..)
 
-## Sample `CustomNBImage` resources
-
-### Build an image from a package list
-
-```yaml
----
-apiVersion: meteor.zone/v1alpha1
-kind: CustomNBImage
-metadata:
-  name: ubi8-py38-sample-3
-  labels:
-    app.kubernetes.io/created-by: cpe:/a:meteor.zone:CNBi:v0.1.0
-  annotations:
-    opendatahub.io/notebook-image-name: ubi8-py38-sample-3
-    opendatahub.io/notebook-image-desc: a Notebook with Python 3.8 and pandas and boto3
-    opendatahub.io/notebook-image-creator: goern
-spec:
-  runtimeEnvironment:
-    osName: ubi
-    osVersion: "8"
-    pythonVersion: "3.8"
-  strategy:
-      type: build
-  packageVersions:
-    - pandas
-    - boto3>=1.24.0
-```
-
-### Import an image
-
-This is a proposal for an import of an Image. It carries information according to [Open Data Hub annotations](https://github.com/opendatahub-io/jupyterhub-singleuser-profiles/blob/master/jupyterhub_singleuser_profiles/images.py#L10-L19) only `created-by` is interpreted in a different way. Annotations are passed to the PipelineRun.
-
-```yaml
-apiVersion: meteor.zone/v1alpha1
-kind: CustomNBImage
-metadata:
-  name: s2i-minimal-py38-notebook
-  labels:
-    app.kubernetes.io/created-by: cpe:/a:meteor.zone:CNBi:v0.1.0
-  annotations:
-    opendatahub.io/notebook-image-name: s2i-minimal-py38-notebook
-    opendatahub.io/notebook-image-desc: minimal notebook image for python 3.8
-    opendatahub.io/notebook-image-creator: goern
-spec:
-  strategy:
-    type: import
-    from: quay.io/thoth-station/s2i-minimal-py38-notebook:v0.2.2
-```
-
-A demo of a similar `CustomNBImage` in action is available here: https://asciinema.org/a/517335
 
 ## References
+
+A demo of a similar `CustomNBImage` in action is available here: https://asciinema.org/a/517335
 
 This section contains pointers to other components that are relevant to this effort.
 
@@ -291,3 +231,15 @@ spec:
   ttl: 5000
 ```
 
+### Background: Import (the BYON way)
+
+For the phase 1 *Bring your own notebook (BYON)* functionality, the ODH dashboard creates a `PipelineRun`.
+
+```mermaid
+flowchart LR
+    subgraph BYON Import
+        PR[/PipelineRun/]
+    end
+    O[ODH] ==> PR --> IS[/ImageStream/] -.-> JH[JupyterHub]
+    I[(Image)] -.-> PR & JH
+```

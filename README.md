@@ -10,7 +10,7 @@ We will introduce a new custom resource defintition (CRD) — called `CustomNBIm
 1. the interface between UI and service and
 2. contain all the configuration items required for any CNBi use case.
 
-A first draft of the [CNBi CRD](https://github.com/goern/meteor-operator/blob/spike-cnbi-crd/api/v1alpha1/customnbimage_types.go#L38-L43) is available. @goern recorded [a demo](https://asciinema.org/a/516347) of [the first draft](https://github.com/goern/meteor-operator/tree/spike-cnbi-crd)
+A first draft of the [CNBi CRD](https://github.com/goern/meteor-operator/blob/8519622ce8af337531a7c9cab236513a432cd772/config/samples/meteor_v1alpha1_customnbimage.yaml) is available.
 
 We will create a custom notebook image controller, that will reconcile the state of CNBi custom resource objects.
 
@@ -53,8 +53,8 @@ metadata:
     opendatahub.io/notebook-image-desc: minimal notebook image for python 3.8
     opendatahub.io/notebook-image-creator: goern
 spec:
-  type: import
-  baseImage: quay.io/thoth-station/s2i-minimal-py38-notebook:v0.2.2
+  buildType: ImageImport
+  fromImage: quay.io/thoth-station/s2i-minimal-py38-notebook:v0.2.2
 ```
 
 ### Build
@@ -98,7 +98,7 @@ erDiagram
 }
 ```
 
-### Example
+#### Example
 
 This example shows how to build a notebook image using a specific runtime environment and a
 list of packages.
@@ -110,7 +110,7 @@ metadata:
   name: ubi8-py38-sample-3
 [...]
 spec:
-  type: packageList
+  buildType: PackageList
   runtimeEnvironment:
     osName: ubi
     osVersion: "8"
@@ -131,8 +131,8 @@ metadata:
   name: ubi8-py38-sample-3
 [...]
 spec:
-  type: packageList
-  baseImage: quay.io/thoth-station/s2i-minimal-py38-notebook:v0.2.2
+  buildType: PackageList
+  builderImage: quay.io/thoth-station/s2i-minimal-py38-notebook:v0.2.2
   packageVersions:
     - pandas
     - boto3>=1.24.0
@@ -148,9 +148,9 @@ metadata:
   name: ubi8-py38-sample-3
 [...]
 spec:
-  type: gitRepository
-  baseImage: quay.io/thoth-station/s2i-minimal-py38-notebook:v0.2.2 # Optional? it's not used by Meteor
+  buildType: GitRepository
   repositoryUrl: https://github.com/AICoE/elyra-aidevsecops-tutorial
+  gitRef: master
 ```
 
 
@@ -227,9 +227,11 @@ One exception / potential reason to have multiple Pipeline(Run)s would be if the
 We have different use cases that require different actions, and therefore different pipelines to be run. How to handle that?
 
 Alternatives that come to mind are:
-- continue with a single `CustomNBImage` CRD, and have a field that determines the action (e.g. *import*, *build image*, *create image*...)
-- the same but without an explicit field; deduce the action (and therefore the pipeline) from the parameters that are defined. I don't quite like that - explicit better than implicit.
-- have multiple CRDs, e.g. one per action type, with specific fields (e.g. `CustomNBImageImport` points to an image to import, `CustomNBImageBuild` points to a repo..)
+1. continue with a single `CustomNBImage` CRD, and have a field that determines the action (e.g. *import*, *build image*, *create image*...)
+2. the same but without an explicit field; deduce the action (and therefore the pipeline) from the parameters that are defined. I don't quite like that - explicit better than implicit.
+3. have multiple CRDs, e.g. one per action type, with specific fields (e.g. `CustomNBImageImport` points to an image to import, `CustomNBImageBuild` points to a repo..)
+
+We are going for option 1: a single `CustomNBImage` resource with a `buildType` field that determines the actions to carry out.
 
 
 ## References
@@ -247,6 +249,19 @@ The [BYON pipelines](https://github.com/open-services-group/byon/blob/3b23be51f6
 - desc:
 - creator:
 
+#### Background: Import (the BYON way)
+
+For the phase 1 *Bring your own notebook (BYON)* functionality, the ODH dashboard creates a `PipelineRun`.
+
+```mermaid
+flowchart LR
+    subgraph BYON Import
+        PR[/PipelineRun/]
+    end
+    O[ODH] ==> PR --> IS[/ImageStream/] -.-> JH[JupyterHub]
+    I[(Image)] -.-> PR & JH
+```
+
 ### Meteor build resource
 
 Here is how a [Meteor custom resource](https://github.com/AICoE/meteor-operator/blob/34731bb723ba13d8d1bb214d4626bb02438af72e/config/samples/meteor_v1alpha1_meteor.yaml) looks like:
@@ -260,17 +275,4 @@ spec:
   url: https://github.com/aicoe-aiops/meteor-demo
   ref: main
   ttl: 5000
-```
-
-### Background: Import (the BYON way)
-
-For the phase 1 *Bring your own notebook (BYON)* functionality, the ODH dashboard creates a `PipelineRun`.
-
-```mermaid
-flowchart LR
-    subgraph BYON Import
-        PR[/PipelineRun/]
-    end
-    O[ODH] ==> PR --> IS[/ImageStream/] -.-> JH[JupyterHub]
-    I[(Image)] -.-> PR & JH
 ```

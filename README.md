@@ -67,14 +67,19 @@ flowchart TB
     subgraph CNBi Operator
         direction LR
         CR -.- C[CNBi controller] ==> PRprepare[/PipelineRun: prepare/]
+        subgraph Sources
+            S[(git)] & p[(package-list)]
+        end
+        CR -.one of.-Sources
+        S & p -.used by.-PRcanon
         subgraph OpenShift Pipelines
-            B[(base image)] & g[(git)] -.uses.-> PRprepare
+            PRcanon[/PipelineRun: canonicalizes/] -.produces.-> Crep
+            B[(base image)] & Crep[(canonical rep = set of packages versions)] -.uses.-> PRprepare
             PRprepare --> PRbuild[/PipelineRun: build/]
             PRbuild --> PRvalidate[/PipelineRun: validate/]
         end
     end
     PRvalidate --> I[(Image)] & IS[/ImageStream/] -.-> JH[JupyterHub]
-    O --unsure about this?!--> g
 ```
 
 > for cardinality notation of entity relationship diagram see https://vertabelo.com/blog/crow-s-foot-notation/

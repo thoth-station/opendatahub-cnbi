@@ -76,7 +76,6 @@ flowchart TB
         end
     end
     PRvalidate --> I[(Image)] & IS[/ImageStream/] -.-> JH[JupyterHub]
-    O --unsure about this?!--> g
 ```
 
 > for cardinality notation of entity relationship diagram see https://vertabelo.com/blog/crow-s-foot-notation/

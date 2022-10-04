@@ -67,10 +67,12 @@ flowchart TB
     subgraph CNBi Operator
         direction LR
         CR -.- C[CNBi controller] ==> PRprepare[/PipelineRun: prepare/]
+        subgraph Sources
+            S[(git)] & p[(package-list)]
+        end
+        CR -.one of.-Sources
         subgraph OpenShift Pipelines
-            subgraph Sources
-                S[(git)] & p[(package-list)] -.canonicalize.-> Crep
-            end
+            Sources -.canonicalizes.-> Crep
             B[(base image)] & Crep[(canonical rep = set of packages versions)] -.uses.-> PRprepare
             PRprepare --> PRbuild[/PipelineRun: build/]
             PRbuild --> PRvalidate[/PipelineRun: validate/]

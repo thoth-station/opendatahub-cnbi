@@ -71,8 +71,8 @@ flowchart TB
             S[(git)] & p[(package-list)]
         end
         CR -.one of.-Sources
+        Sources -.canonicalizes.-> Crep
         subgraph OpenShift Pipelines
-            Sources -.canonicalizes.-> Crep
             B[(base image)] & Crep[(canonical rep = set of packages versions)] -.uses.-> PRprepare
             PRprepare --> PRbuild[/PipelineRun: build/]
             PRbuild --> PRvalidate[/PipelineRun: validate/]

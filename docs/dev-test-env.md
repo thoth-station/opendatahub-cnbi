@@ -28,37 +28,27 @@ Operate First deploys the OpenDatahub operatorhub using manual method.
 
 * Components:
 
-Operate First maintains a [fork of odh-manifests](https://github.com/operate-first/odh-manifests) where the manifests are customized in branches that correspond to the target clusters. <br>
+Operate First maintains a [fork of odh-manifests](https://github.com/operate-first/odh-manifests) where the manifests are customized in branches that correspond to the target clusters.
+
 The [osc-cl1-byon branch on that fork](https://github.com/operate-first/odh-manifests/tree/osc-cl1-byon) is used for ODH deployment to the **OSC cluster1**.
 
-- Kfdef to allow OpenDataHub operator to deploy the components is available here: <https://github.com/operate-first/apps/tree/master/kfdefs/overlays/osc/osc-cl1>
-- The target namespace for the deployment is **opf-jupyterhub-stage**.
-- **ODH-Dashboard** and **Jupyterhub** would be deployed.
+- The target namespace for the deployment of Thoth's CNBi functionality components is **cnbi**.
+- The Kfdef to allow OpenDataHub operator to deploy the components is available here: <https://github.com/operate-first/apps/tree/master/kfdefs/overlays/osc/osc-cl1/cnbi/kfdef.yaml>. That Kfdef:
+  - uses the [meteor-operator repository](https://github.com/thoth-station/meteor-operator) to deploy the CNBi controller and pipeline manifests as defined there
+    - the operator's manifests are under `config/`. In particular, the version of the controller to deploy is in the [manager kustomization file](https://github.com/thoth-station/meteor-operator/blob/7f023d4834ada99d25670cf6b4622587f11d0b55/config/manager/kustomization.yaml#L16)
+    - the Pipeline manifests are under [`pipelines/`](https://github.com/thoth-station/meteor-operator/tree/95a27eff3213d47fb3c76a2ec4ad5942d397d257/pipelines)
+  - deploys [thoth-station's fork of the odh-dashboard](https://github.com/thoth-station/odh-dashboard) as specified in the [odh-manifests for osc-cl1-byon](https://github.com/operate-first/odh-manifests/blob/b75d8167f04e76907238d35aa9e451bbd7f0ca67/odh-dashboard/base/kustomization.yaml#L20)
+  - also deploys standard ODH components: *odh-common*, *notebook-images* and *Jupyterhub*.
 
-#### ArgoCD
-ArgoCD is used to automate this process of deployment. <br>
-It [deploys BYON's version of the odh-dashboard](https://github.com/operate-first/odh-manifests/blob/34b43f6b2e2fe1195b37709736a89d64c3bf4411/odh-dashboard/base/deployment.yaml#L30) in the opf-jupyterhub-stage namespace ([as configured](https://github.com/operate-first/apps/blob/92c9d16c1d69e2a87075e2cf45f03dbf55324aa5/kfdefs/overlays/osc/osc-cl1/jupyterhub-stage/kfdef.yaml) in the app's repo). <br>
-That image is built from <https://github.com/thoth-station/odh-dashboard> tags and is available at `quay.io/repository/thoth-station/odh-dashboard:dev`.
-
-### CNBi pipeline manifests
-
-Note that, as of this writing, the stage namespace also has a manifest of the BYON validation/import pipeline (whose canonical source is in the [Thoth helm-charts repo](https://github.com/thoth-station/helm-charts/blob/08e78c0bd12cfe85cad65d5d1b6979ddb45ee1fb/charts/meteor-pipelines/templates/byon-import-jupyterhub-image.yaml)):
-
-    $ tkn p ls
-    NAME                           AGE            LAST RUN                                 STARTED        DURATION   STATUS
-    byon-import-jupyterhub-image   15 weeks ago   byon-import-jupyterhub-image-run-r8jc6   14 weeks ago   1 minute   Succeeded
-
-That pipeline definition, as deployed in that environment, (and the associated `byon-validate-jupyterhub-image` Task) comes from [ODH BYON development](https://github.com/operate-first/odh-manifests/tree/osc-cl1-byon/jupyterhub/jupyterhub/overlays/byon). That pipeline is **not** meant to be used for CNBi.
-
-TBD
+Operate First's ArgoCD is used to automate this process of deployment.
 
 ### CNBi Operator deployment
 
-The operator can be built and packaged into an image with:
+Each [tag in the meteor-operator repo](https://github.com/thoth-station/meteor-operator/tags) is automatically built by aicoe-ci and pushed to [quay.io](https://quay.io/repository/thoth-station/meteor-operator?tab=tags).
 
-    IMAGE_VERSION="v0.0.5"
-    IMAGE="quay.io/thoth-station/cnbi-operator"
-    make docker-build docker-push IMG="$IMAGE:$IMAGE_VERSION"
+Custom versions of the operator can be built and packaged into an image with:
+
+    VERSION="v0.0.5" IMAGE_TAG_BASE="quay.io/thoth-station/meteor-operator" make docker-build docker-push
 
 The deployment of the CNBI operator into the cluster is designed following opendatahub's pattern.
 Kustomize is used to structure the cnbi operator manifests, and the manifests are available
@@ -78,6 +68,7 @@ Here are pointers on how to set up a local development environment for the CNBi 
     - Use Quicklab instance to setup a new cluster. [More detail](https://docs.google.com/document/d/13X5z2dRSe1Aaoj9Z722xul9_1_OWo5-FYyxyZ-y3oZA/edit#heading=h.yz7m8a57wxab)
     - Requires RedHat VPN to access these cluster.
 
+- The `Makefile` helps ensure that the cluster meets the requirements: with a valid `KUBECONFIG` with a user with cluster-admin privileges, you can run `make prerequisites` to install the operators that cnbi depends upon (openshift-pipelines and cert-manager)
 
 ### OpenDataHub
 

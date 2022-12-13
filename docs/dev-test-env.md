@@ -32,7 +32,7 @@ Operate First maintains a [fork of odh-manifests](https://github.com/operate-fir
 
 The [osc-cl1-byon branch on that fork](https://github.com/operate-first/odh-manifests/tree/osc-cl1-byon) is used for ODH deployment to the **OSC cluster1**.
 
-- The target namespace for the deployment of Thoth's CNBi functionality components is **cnbi**.
+- The target namespace for the deployment of Thoth's CNBi functionality components is **aicoe-meteor**, as noted in the [kustomization file for cnbi](https://github.com/operate-first/apps/blob/master/kfdefs/overlays/osc/osc-cl1/cnbi/kustomization.yaml)
 - The Kfdef to allow OpenDataHub operator to deploy the components is available here: <https://github.com/operate-first/apps/tree/master/kfdefs/overlays/osc/osc-cl1/cnbi/kfdef.yaml>. That Kfdef:
   - uses the [meteor-operator repository](https://github.com/thoth-station/meteor-operator) to deploy the CNBi controller and pipeline manifests as defined there
     - the operator's manifests are under `config/`. In particular, the version of the controller to deploy is in the [manager kustomization file](https://github.com/thoth-station/meteor-operator/blob/7f023d4834ada99d25670cf6b4622587f11d0b55/config/manager/kustomization.yaml#L16)
